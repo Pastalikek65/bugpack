@@ -3,6 +3,8 @@ import { LIMITS, type BugReport, type BundleFile, type BundleResult, type Eviden
 import { assertJpegSignature, assertPngSignature, parseImageHeader } from '../image/format.ts';
 import { startWorkerOperation, WorkerOperationError, type WorkerOperation, type WorkerResult } from '../worker/client.ts';
 import type { ImageProcessResult, PixelMask } from '../worker/processing.worker.ts';
+import type { RedactionPolicy } from '../core/contracts.ts';
+import PolicyPanel from './PolicyPanel.tsx';
 
 type Status = 'queued' | 'processing' | 'ready' | 'failed';
 
@@ -56,6 +58,7 @@ let evidenceSequence = 1;
 
 export default function App() {
   const [entries, setEntries] = useState<Evidence[]>([]);
+  const [policy, setPolicy] = useState<RedactionPolicy>();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [report, setReport] = useState<BugReport>(EMPTY_REPORT);
   const [reviewed, setReviewed] = useState(false);
@@ -122,13 +125,14 @@ export default function App() {
     });
   };
 
-  const processFiles = async (items: Evidence[]) => {
+  const processFiles = async (items: Evidence[], appliedPolicy = policy) => {
     const processable = items.filter((item): item is TextEvidence | ImageEvidence => Boolean(item.kind) && item.status === 'queued');
-    if (processable.length === 0) return;
+    if (processable.length === 0) return true;
     cancelRequested.current = false;
     setBusy(true);
     setGlobalError('');
     let cancelledIds: string[] = [];
+    let failed = false;
     try {
       for (let index = 0; index < processable.length; index++) {
         const item = processable[index]!;
@@ -173,7 +177,7 @@ export default function App() {
             updateEntry(item.id, (current) => current.kind === 'har' || current.kind === 'log' ? { ...current, sourceText: raw } : current, true);
             if (cancelRequested.current) throw new WorkerOperationError('Worker operation was cancelled.', 'cancelled');
             const operation = startWorkerOperation<SanitizedText>({
-              type: 'sanitize-text', kind: item.kind, text: raw,
+              type: 'sanitize-text', kind: item.kind, text: raw, policy: appliedPolicy,
             });
             const result = await setOperation(operation);
             invalidateReview();
@@ -182,6 +186,7 @@ export default function App() {
             } : current);
           }
         } catch (error) {
+          failed = true;
           const message = error instanceof Error ? error.message : 'File processing failed.';
           updateEntry(item.id, (current) => ({ ...current, status: 'failed', error: message } as Evidence), true);
           if (cancelRequested.current || (error instanceof WorkerOperationError && error.code === 'cancelled')) {
@@ -199,6 +204,7 @@ export default function App() {
       setBusyLabel('');
       workerRef.current = null;
     }
+    return !failed && !cancelRequested.current;
   };
 
   const addFiles = async (files: File[]) => {
@@ -390,7 +396,7 @@ export default function App() {
           throw new Error(`${item.name} is not a supported evidence file.`);
         }
       }
-      const operation = startWorkerOperation<import('../core/contracts.ts').BundleResult>({ type: 'build-bundle', files: bundleFiles, report }, transfer);
+      const operation = startWorkerOperation<import('../core/contracts.ts').BundleResult>({ type: 'build-bundle', files: bundleFiles, report, policy }, transfer);
       const result = await setOperation(operation);
       if (sourceRevision !== revisionRef.current) throw new Error('Inputs changed while the ZIP was being built. Review the files again before exporting.');
       revokeExport();
@@ -417,6 +423,17 @@ export default function App() {
 
   const sourceUrl = useObjectUrl(selected?.kind === 'image' ? selected.source : null);
   const cleanImageUrl = useObjectUrl(selected?.kind === 'image' ? selected.cleanPng ?? null : null, 'image/png');
+
+  const applyPolicy = async (next: RedactionPolicy) => {
+    if (busy) throw new Error('Wait for the current operation to finish.');
+    invalidateReview();
+    setPolicy(next);
+    const queued = entries.filter((item): item is TextEvidence => item.kind === 'har' || item.kind === 'log').map(item => ({ ...item, status: 'queued' as const, cleanText: undefined, changes: undefined, omissions: undefined, error: undefined }));
+    const ids = new Set(queued.map(item => item.id));
+    setEntries(current => current.map(item => ids.has(item.id) ? queued.find(next => next.id === item.id)! : item));
+    const rebuilt = await processFiles(queued, next);
+    if (!rebuilt) throw new Error('Policy selected, but text rebuilding failed or was cancelled. Resolve the failed files before reviewing and exporting.');
+  };
 
   return (
     <div className="app-shell" onDragOver={(event) => { event.preventDefault(); }} onDrop={onDrop}>
@@ -447,6 +464,7 @@ export default function App() {
           </div>
         </section>
 
+        <PolicyPanel active={policy} busy={busy} hasText={entries.some(item => item.kind === 'har' || item.kind === 'log')} onApply={applyPolicy} />
         {globalError && <div className="alert alert-error" role="alert">{globalError}</div>}
         {busy && <div className="operation-bar" role="status" aria-live="polite">
           <span className="spinner" aria-hidden="true" />

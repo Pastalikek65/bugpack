@@ -1,5 +1,5 @@
 import { buildBundle } from '../core/bundle.ts';
-import { LIMITS, type BugReport, type BundleFile, type EvidenceKind, type SanitizedText } from '../core/contracts.ts';
+import { LIMITS, type BugReport, type BundleFile, type EvidenceKind, type SanitizedText, type RedactionPolicy } from '../core/contracts.ts';
 import { sanitizeHar, sanitizeLog } from '../core/redaction.ts';
 import { parseImageHeader, stripPngAncillaryChunks } from '../image/format.ts';
 
@@ -12,9 +12,9 @@ export interface PixelMask {
 }
 
 export type WorkerRequest =
-  | { id: number; type: 'sanitize-text'; kind: 'har' | 'log'; text: string }
+  | { id: number; type: 'sanitize-text'; kind: 'har' | 'log'; text: string; policy?: RedactionPolicy }
   | { id: number; type: 'process-image'; bytes: ArrayBuffer; masks: PixelMask[]; allowZeroArea: boolean }
-  | { id: number; type: 'build-bundle'; files: BundleFile[]; report: BugReport };
+  | { id: number; type: 'build-bundle'; files: BundleFile[]; report: BugReport; policy?: RedactionPolicy };
 
 export interface ImageProcessResult {
   png: Uint8Array;
@@ -48,7 +48,7 @@ async function handleRequest(request: WorkerRequest): Promise<void> {
   try {
     if (request.type === 'sanitize-text') {
       if (typeof request.text !== 'string') throw new Error('Text input is missing.');
-      const result = request.kind === 'har' ? sanitizeHar(request.text) : sanitizeLog(request.text);
+      const result = request.kind === 'har' ? sanitizeHar(request.text, request.policy) : sanitizeLog(request.text, request.policy);
       if (new TextEncoder().encode(result.text).byteLength > LIMITS.inputBytes) {
         throw new Error('Cleaned text exceeds the 16 MiB review/export limit.');
       }
@@ -64,7 +64,7 @@ async function handleRequest(request: WorkerRequest): Promise<void> {
 
     if (request.type === 'build-bundle') {
       validateBundleInputs(request.files, request.report);
-      const result = await buildBundle(request.files, request.report);
+      const result = await buildBundle(request.files, request.report, request.policy);
       if (!(result.bytes instanceof Uint8Array) || result.bytes.byteLength === 0 || result.bytes.byteLength > LIMITS.outputBytes) {
         throw new Error('The generated bundle is empty or exceeds the output limit.');
       }

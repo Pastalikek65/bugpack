@@ -2,7 +2,7 @@
 
 Inspect debugging evidence locally, remove sensitive values, and share a reviewed ZIP containing clean files and a bug report.
 
-BugPack is for developers and support teams who need to share a HAR, log or screenshot without attaching its original credentials and metadata. The working MVP source is public; downloadable preview packages are being qualified on Windows and Linux. A stable release is not yet published. It runs as a static browser app without an account, upload backend, paid API or remote model.
+BugPack is for developers and support teams who need to share a HAR, log or screenshot without attaching its original credentials and metadata. [Download the qualified 0.1.0 MVP preview](https://github.com/Pastalikek65/bugpack/releases/tag/v0.1.0). The current source adds policies and a text CLI for the next beta; its package qualification is in progress. A stable release is not yet published. It runs locally without an account, upload backend, paid API or remote model.
 
 ![Actual synthetic evidence review and opaque mask](examples/outputs/review.png)
 
@@ -14,6 +14,8 @@ See the [actual processing summary](examples/outputs/processing-summary.json) an
 
 Requires Node.js 24 and a current Chromium browser on Windows or Linux x64.
 
+For the downloaded preview, extract the archive and run `start.cmd` on Windows or `sh start.sh` on Linux. Open the printed localhost address. The preview's SHA-256 checksums and actual package test evidence are included in its release.
+
 ```sh
 npm ci
 npm run build
@@ -22,9 +24,13 @@ node scripts/serve.mjs --root dist --port 4174
 
 Open `http://127.0.0.1:4174`. Choose `examples/sample.har`, `sample.log` and `sample.png`. Review **Original text** beside the editable clean copy. Remove the example email manually: automatic patterns do not find every personal value. On the screenshot, cover the highlighted token with an opaque mask, then choose **Apply masks and regenerate PNG**. Complete the report fields, review every clean file, and choose **Build and download ZIP**.
 
-The ZIP contains neutral `evidence-*` filenames, a Markdown report and `processing-summary.json`. Originals and original filenames are not included automatically. HAR bodies, cookies, unapproved headers and unknown extension fields are omitted in the MVP and counted in the summary. All input files remain unchanged.
+The ZIP contains neutral `evidence-*` filenames, a Markdown report and `processing-summary.json`. Originals and original filenames are not included automatically. The default omits HAR bodies, cookies, unapproved headers and unknown extension fields and counts them in the summary. All input files remain unchanged.
+
+The current source's **Cleaning policy** panel adds reusable policy files, literal replacement rules and opt-in JSON/form body cleanup. Applying a policy rebuilds text from its originals and requires a fresh review. For repeatable text processing, see the [CLI guide](docs/cli.md).
 
 [Türkçe hızlı başlangıç](docs/quickstart.tr.md) · [Supported inputs and limits](docs/support.md) · [Architecture](docs/architecture.md) · [Roadmap](docs/roadmap.md)
+
+[Performance measurement](docs/performance.md) documents the repeatable synthetic CLI workload and the scope of its process-memory figures.
 
 ## Review before sharing
 

@@ -1,10 +1,10 @@
-import { LIMITS, type BundleResult, type SanitizedText } from '../core/contracts.ts';
+import { LIMITS, type BundleResult, type SanitizedText, type RedactionPolicy } from '../core/contracts.ts';
 import type { ImageProcessResult, PixelMask, WorkerRequest, WorkerResponse } from './processing.worker.ts';
 
 export type WorkerCommand =
-  | { type: 'sanitize-text'; kind: 'har' | 'log'; text: string }
+  | { type: 'sanitize-text'; kind: 'har' | 'log'; text: string; policy?: RedactionPolicy }
   | { type: 'process-image'; bytes: ArrayBuffer; masks: PixelMask[]; allowZeroArea: boolean }
-  | { type: 'build-bundle'; files: import('../core/contracts.ts').BundleFile[]; report: import('../core/contracts.ts').BugReport };
+  | { type: 'build-bundle'; files: import('../core/contracts.ts').BundleFile[]; report: import('../core/contracts.ts').BugReport; policy?: RedactionPolicy };
 
 export type WorkerResult = SanitizedText | ImageProcessResult | BundleResult;
 

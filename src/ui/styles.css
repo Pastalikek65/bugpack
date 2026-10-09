@@ -329,3 +329,15 @@ h1 { margin-bottom: 8px; color: #1b304f; font-size: clamp(25px, 2.4vw, 31px); li
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+.policy-panel { margin: 0 0 20px; border: 1px solid var(--border, #d6dfe7); border-radius: 12px; background: #fff; }
+.policy-panel > summary { cursor: pointer; padding: 16px 20px; font-weight: 650; }
+.policy-panel > summary span { margin-left: 14px; font-size: 13px; font-weight: 400; color: #536478; overflow-wrap: anywhere; }
+.policy-content { padding: 0 20px 20px; }
+.policy-content p { font-size: 13px; color: #536478; }
+.policy-fields { border: 0; padding: 0; margin: 0; display: grid; gap: 12px; }
+.policy-fields > label, .policy-rule label { display: grid; gap: 6px; font-size: 13px; font-weight: 600; }
+.policy-fields input:not([type=checkbox]), .policy-fields select { width: 100%; border: 1px solid #b9c7d4; border-radius: 6px; padding: 9px 11px; background: #fff; color: #21354a; }
+.policy-rule { display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px; align-items: end; margin: 12px 0; }
+.policy-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.policy-fields > .policy-confirm { display: flex; align-items: center; gap: 9px; }
+@media (max-width: 700px) { .policy-rule { grid-template-columns: 1fr; } .policy-panel > summary span { display: block; margin: 8px 0 0; } }

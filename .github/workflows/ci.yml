@@ -50,6 +50,9 @@ jobs:
       - run: npm test
       - run: npm run build
       - run: node scripts/acceptance.mjs
+      - run: node scripts/acceptance-policy.mjs
+      - run: node scripts/acceptance-cli.mjs
+      - run: node scripts/benchmark.mjs
       - run: npm audit --audit-level=high
       - name: Retain full dependency audit
         shell: bash
@@ -67,6 +70,12 @@ jobs:
           $roots = @(Get-ChildItem -LiteralPath $install -Directory)
           if ($roots.Count -ne 1) { throw 'Exactly one extracted application root is required.' }
           node scripts/acceptance.mjs --app-root $roots[0].FullName --package $packageFiles[0].FullName
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node scripts/acceptance-policy.mjs --app-root $roots[0].FullName --package $packageFiles[0].FullName
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node scripts/acceptance-cli.mjs --app-root $roots[0].FullName --package $packageFiles[0].FullName
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node scripts/benchmark.mjs --app-root $roots[0].FullName --package $packageFiles[0].FullName
           exit $LASTEXITCODE
       - name: Linux fresh static archive acceptance
         if: runner.os == 'Linux'
@@ -81,6 +90,9 @@ jobs:
           roots=("$install"/*)
           test "${#roots[@]}" -eq 1
           node scripts/acceptance.mjs --app-root "${roots[0]}" --package "${packages[0]}"
+          node scripts/acceptance-policy.mjs --app-root "${roots[0]}" --package "${packages[0]}"
+          node scripts/acceptance-cli.mjs --app-root "${roots[0]}" --package "${packages[0]}"
+          node scripts/benchmark.mjs --app-root "${roots[0]}" --package "${packages[0]}"
       - uses: actions/upload-artifact@v7.0.2
         if: always()
         with:
@@ -95,6 +107,14 @@ jobs:
             artifacts/acceptance-*/*-bundle.zip
             artifacts/acceptance-*/processing-summary.json
             artifacts/audit.json
+            artifacts/policy-*/acceptance.json
+            artifacts/policy-*/failure.json
+            artifacts/policy-*/failure.png
+            artifacts/policy-*/policy-review.png
+            artifacts/policy-*/policy-bundle.zip
+            artifacts/policy-*/processing-summary.json
+            artifacts/cli-*/**
+            artifacts/benchmark-*/**
             release/*.zip
             release/*.tar.gz
             release/SHA256SUMS.txt

@@ -1,6 +1,7 @@
 import { zipSync } from 'fflate';
-import { LIMITS, type BugReport, type BundleFile, type BundleResult, type EvidenceKind, type Omission } from './contracts';
-import { sanitizeHar, sanitizeLog } from './redaction';
+import { LIMITS, type BugReport, type BundleFile, type BundleResult, type EvidenceKind, type Omission, type RedactionPolicy } from './contracts.ts';
+import { sanitizeHar, sanitizeLog } from './redaction.ts';
+import { DEFAULT_REDACTION_POLICY, redactionPolicyFingerprint, validateRedactionPolicy } from './policy.ts';
 
 const encoder = new TextEncoder();
 const PNG_SIGNATURE = Uint8Array.from([137, 80, 78, 71, 13, 10, 26, 10]);
@@ -14,6 +15,9 @@ const OMISSION_DESCRIPTIONS: Readonly<Record<string, string>> = Object.freeze({
   'query-string': 'HAR queryString copies were omitted; the sanitized request URL is retained.',
   cookie: 'HAR cookies were omitted.',
   body: 'HAR request and response bodies were omitted.',
+  'body-invalid': 'A malformed or ambiguous request or response body was omitted.',
+  'body-binary': 'A binary or base64 request or response body was omitted.',
+  'body-unsupported': 'An unsupported request or response body format was omitted.',
   comment: 'HAR comments were omitted.',
   cache: 'HAR cache data was omitted.',
   'entry-metadata': 'HAR network and page metadata were omitted.',
@@ -22,7 +26,7 @@ const OMISSION_DESCRIPTIONS: Readonly<Record<string, string>> = Object.freeze({
   'image-regenerated': 'Image pixels were regenerated as PNG; source metadata was omitted.',
 });
 const PRIOR_CODES_BY_KIND: Readonly<Record<EvidenceKind, ReadonlySet<string>>> = Object.freeze({
-  har: new Set(['unknown-field', 'url-credentials', 'url-fragment', 'header', 'query-string', 'cookie', 'body', 'comment', 'cache', 'entry-metadata', 'page-metadata']),
+  har: new Set(['unknown-field', 'url-credentials', 'url-fragment', 'header', 'query-string', 'cookie', 'body', 'body-invalid', 'body-binary', 'body-unsupported', 'comment', 'cache', 'entry-metadata', 'page-metadata']),
   log: new Set<string>(),
   image: new Set(['png-metadata', 'image-regenerated']),
 });
@@ -159,24 +163,24 @@ function validatePng(source: Uint8Array): CleanPng {
   return { bytes: cleanBytes, omissions, changes: removedAncillary };
 }
 
-function safeReportField(value: unknown, label: string, maxLength: number): string {
+function safeReportField(value: unknown, label: string, maxLength: number, policy: RedactionPolicy): string {
   if (typeof value !== 'string') fail(`Bug report ${label} must be text`);
   if (value.length > maxLength || encoder.encode(value).byteLength > maxLength * 4) fail(`Bug report ${label} exceeds the supported length`);
-  return sanitizeLog(value).text;
+  return sanitizeLog(value, policy).text;
 }
 
 function escapeMarkdown(value: string): string {
   return value.replace(/[\\`*_{}\[\]<>\(\)#+\-.!|~]/g, (character) => `\\${character}`);
 }
 
-function buildReport(report: BugReport): { bytes: Uint8Array } {
+function buildReport(report: BugReport, policy: RedactionPolicy): { bytes: Uint8Array } {
   if (!report || typeof report !== 'object') fail('Bug report is required');
   const fields = {
-    title: safeReportField(report.title, 'title', 1024),
-    steps: safeReportField(report.steps, 'steps', 64 * 1024),
-    expected: safeReportField(report.expected, 'expected result', 64 * 1024),
-    actual: safeReportField(report.actual, 'actual result', 64 * 1024),
-    environment: safeReportField(report.environment, 'environment', 64 * 1024),
+    title: safeReportField(report.title, 'title', 1024, policy),
+    steps: safeReportField(report.steps, 'steps', 64 * 1024, policy),
+    expected: safeReportField(report.expected, 'expected result', 64 * 1024, policy),
+    actual: safeReportField(report.actual, 'actual result', 64 * 1024, policy),
+    environment: safeReportField(report.environment, 'environment', 64 * 1024, policy),
   };
   const markdown = [
     '# Bug report',
@@ -229,10 +233,12 @@ function mergeOmissions(kind: EvidenceKind, ...groups: Omission[][]): Omission[]
 }
 
 /** Creates a ZIP from freshly sanitized evidence and generated neutral filenames. */
-export function buildBundle(files: BundleFile[], report: BugReport): BundleResult {
+export function buildBundle(files: BundleFile[], report: BugReport, policyValue?: RedactionPolicy): BundleResult {
   if (!Array.isArray(files)) fail('Bundle files must be an array');
   if (files.length === 0) fail('Bundle requires at least one evidence file');
   if (files.length > LIMITS.files) fail(`Bundle exceeds the ${LIMITS.files} file limit`);
+  const hasPolicy = policyValue !== undefined;
+  const policy = hasPolicy ? validateRedactionPolicy(policyValue) : DEFAULT_REDACTION_POLICY;
   const ids = new Set<string>();
   const cleanFiles: CleanFile[] = [];
   let totalInputBytes = 0;
@@ -251,7 +257,8 @@ export function buildBundle(files: BundleFile[], report: BugReport): BundleResul
       const inputSize = encoder.encode(file.text).byteLength;
       if (inputSize > LIMITS.inputBytes) fail(`${file.kind.toUpperCase()} input exceeds the byte limit`);
       totalInputBytes += inputSize;
-      const clean = file.kind === 'har' ? sanitizeHar(file.text) : sanitizeLog(file.text);
+      if (totalInputBytes > LIMITS.totalInputBytes) fail(`Bundle exceeds the ${LIMITS.totalInputBytes} byte aggregate input limit`);
+      const clean = file.kind === 'har' ? sanitizeHar(file.text, policy) : sanitizeLog(file.text, policy);
       cleanFiles.push({
         name: `evidence-${nameIndex}.${file.kind}`,
         kind: file.kind,
@@ -263,6 +270,8 @@ export function buildBundle(files: BundleFile[], report: BugReport): BundleResul
     } else if (file.kind === 'image') {
       if (file.text !== undefined || !(file.png instanceof Uint8Array)) fail('Bundle image evidence must contain PNG bytes only');
       if (file.masks !== undefined && (!Number.isSafeInteger(file.masks) || file.masks < 0 || file.masks > 1_000_000)) fail('Image mask count is invalid');
+      totalInputBytes += file.png.byteLength;
+      if (totalInputBytes > LIMITS.totalInputBytes) fail(`Bundle exceeds the ${LIMITS.totalInputBytes} byte aggregate input limit`);
       const clean = validatePng(file.png);
       cleanFiles.push({
         name: `evidence-${nameIndex}.png`,
@@ -277,26 +286,34 @@ export function buildBundle(files: BundleFile[], report: BugReport): BundleResul
     }
   }
 
-  const cleanReport = buildReport(report);
-  if (totalInputBytes > LIMITS.totalInputBytes) fail(`Bundle exceeds the ${LIMITS.totalInputBytes} byte aggregate input limit`);
+  const cleanReport = buildReport(report, policy);
 
-  const summary: BundleResult['summary'] = {
-    schemaVersion: 1,
-    files: cleanFiles.map((file) => ({
+  const summaryFiles = cleanFiles.map((file) => ({
       name: file.name,
       kind: file.kind,
       bytes: file.bytes.byteLength,
       changes: file.changes,
       omissions: summarizeOmissions(file.omissions),
       masks: file.masks,
-    })),
-    limitations: [
-      'Automatic redaction is incomplete; inspect every included item before sharing.',
-      'HAR request and response bodies, cookies, unapproved headers, and unknown fields are omitted.',
-      'The bug report uses bounded credential patterns and has no automatic personal-information guarantee.',
-      'PNG ancillary metadata is removed; verify image masks before sharing.',
-      'Prior processing counts are app-reported and are not an independent audit of original inputs.',
-    ],
+    }));
+  const limitations = [
+    'Automatic redaction is incomplete; inspect every included item before sharing.',
+    'HAR request and response bodies, cookies, unapproved headers, and unknown fields are omitted.',
+    'The bug report uses bounded credential patterns and has no automatic personal-information guarantee.',
+    'PNG ancillary metadata is removed; verify image masks before sharing.',
+    'Prior processing counts are app-reported and are not an independent audit of original inputs.',
+  ];
+  const summary: BundleResult['summary'] = hasPolicy ? {
+    schemaVersion: 2,
+    policy: { schemaVersion: 1, id: redactionPolicyFingerprint(policy), bodyMode: policy.bodyMode },
+    files: summaryFiles,
+    limitations: policy.bodyMode === 'supported'
+      ? [...limitations, 'Only valid JSON and UTF-8 URL-encoded request and response bodies are included; other bodies are omitted.']
+      : limitations,
+  } : {
+    schemaVersion: 1,
+    files: summaryFiles,
+    limitations,
   };
   const summaryBytes = encoder.encode(JSON.stringify(summary, null, 2));
   const uncompressedOutputBytes = cleanReport.bytes.byteLength + summaryBytes.byteLength + cleanFiles.reduce((sum, file) => sum + file.bytes.byteLength, 0);

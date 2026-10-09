@@ -1,6 +1,10 @@
 # Verification
 
-Current status: local MVP development; no released or stable package is qualified. Both Windows and Linux x64 package flows, independently inspected generated ZIPs, image pixels/metadata, source immutability and exact-source evidence are required before publication.
+Current status: [0.1.0 MVP preview is published](https://github.com/Pastalikek65/bugpack/releases/tag/v0.1.0), qualified from exact commit `de47154576f9e260fa6de286d785bbca56c1f77d` and CI `37897925690`. Both Windows/Linux passed 33 tests in five files, actual source and extracted-package twelve-step browser acceptance, seeded-secret ZIP inspection, opaque/all-unmasked pixel checks and full 33-file archive/tree verification. The same Windows CI ZIP passed twelve additional steps on Windows 11. Release verification records hashes, host scope, separate Windows 11 OS attestation and limitations. Stable v1 is not published; current policy/CLI beta changes require fresh independent and cross-platform package qualification.
+
+## Retained early MVP development records
+
+The following records describe earlier snapshots, including failures that were fixed before the public MVP. They are preserved as history, not current beta test totals.
 
 Initial local core review reproduced: semicolon cookie values escaping line cleanup; lost first-pass HAR omission counts in the bundle summary; repeated redaction markers inflating counts; quoted JSON credentials and AWS/OAuth/Azure/GCS signed-URL values escaping fixed patterns. Each received a failed regression before a fix. Image-header regressions cover repeated JPEG frame headers, EXIF bounds, PNG IHDR checksum/settings and animation rejection. Raw private reproductions remain retained; committed tests require the corrected behavior.
 

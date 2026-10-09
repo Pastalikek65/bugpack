@@ -1,6 +1,8 @@
 # Türkçe hızlı başlangıç
 
-BugPack HAR dosyası, UTF-8 log ve PNG/JPEG ekran görüntülerini bilgisayarınızda inceler, temiz kopyalarını ve hata raporunu ZIP olarak dışa aktarır. Hesap, ücretli API veya dosya yükleme sunucusu gerekmez. MVP henüz yayımlanmamıştır; doğrulama tamamlanmadan kararlı sürüm olarak sunulmaz.
+BugPack HAR dosyası, UTF-8 log ve PNG/JPEG ekran görüntülerini bilgisayarınızda inceler, temiz kopyalarını ve hata raporunu ZIP olarak dışa aktarır. Hesap, ücretli API veya dosya yükleme sunucusu gerekmez. [Doğrulanmış 0.1.0 MVP önizlemesi yayımlandı](https://github.com/Pastalikek65/bugpack/releases/tag/v0.1.0); güncel kaynak kodundaki politika ve CLI geliştirmelerinin beta paket doğrulaması sürüyor. Henüz kararlı v1 değildir.
+
+İndirilen paketi açıp Windows'ta `start.cmd`, Linux'ta `sh start.sh` çalıştırın. Node.js 24 ayrıca kurulu olmalıdır. Kaynak koddan çalıştırmak için:
 
 Node.js 24 ve güncel Chromium tabanlı tarayıcıyla:
 
@@ -15,3 +17,7 @@ node scripts/serve.mjs --root dist --port 4174
 MVP HAR gövdelerini, cookie/authentication alanlarını ve desteklenmeyen ek alanları dışarıda bırakır; atlananlar işlem özetinde görünür. ZIP orijinalleri otomatik eklemez. Düzenleme, rapor veya maske değişikliği inceleme onayını sıfırlar. Otomatik temizleme her sırrı veya kişisel veriyi bulmayı garanti etmez; paylaşmadan önce metni, URL’leri, pikselleri ve raporu inceleyin.
 
 Sınırlar ve platform kanıtları: [destek](support.md), [doğrulama](verification.md), [yol haritası](roadmap.md).
+
+Güncel kaynak kodunda **Cleaning policy** paneliyle ek alan adları ve düz metin değiştirme kuralları tanımlayabilirsiniz. **Save policy file** ile kaydedilen JSON eşleşecek özel değerleri içerir; bu dosyayı gizli tutun. **Apply policy** metinleri orijinallerden yeniden üretir, elle yapılan metin düzenlemelerini silmek için açık onay ister ve paylaşım onayını sıfırlar. JSON/form gövdeleri ancak seçtiğiniz desteklenen gövde modunda temizlenerek korunur; bilinmeyen/binary/bozuk gövdeler atlanır.
+
+Metin CLI'si aynı temizleme motorunu kullanır: kaynak derlemesinden sonra `node dist/cli/bugpack.mjs --help`. Görseller için tarayıcı arayüzünü kullanın. [CLI komutları](cli.md).

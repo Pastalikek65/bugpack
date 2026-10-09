@@ -21,7 +21,7 @@ const manifest=JSON.parse(await readFile(path.join(root,'examples/manifest.json'
 const fixtureRoot=packaged?appRoot:root;
 async function identities() {
  const shippedManifest=JSON.parse(await readFile(path.join(fixtureRoot,'examples/manifest.json'),'utf8'));assert.deepEqual(shippedManifest,manifest,'The packaged fixture manifest must match the source contract.');const fixtures=[];for(const f of manifest.files) {const b=await readFile(path.join(fixtureRoot,'examples',f.name));assert.equal(hash(b),f.sha256);assert.equal(b.length,f.bytes);fixtures.push({name:f.name,sha256:hash(b),bytes:b.length});}
- const assets=[];async function visit(dir,prefix='') {for(const e of await readdir(dir,{withFileTypes:true})){if(e.isDirectory())await visit(path.join(dir,e.name),prefix+e.name+'/');else if(e.isFile()){const b=await readFile(path.join(dir,e.name));assets.push({name:prefix+e.name,bytes:b.length,sha256:hash(b)});}else throw new Error('Unsupported application file type.');}}await visit(site);assets.sort((a,b)=>a.name.localeCompare(b.name));
+ const assets=[];async function visit(dir,prefix='') {for(const e of await readdir(dir,{withFileTypes:true})){if(e.isDirectory()){if(!packaged && !prefix && e.name==='cli')continue;await visit(path.join(dir,e.name),prefix+e.name+'/');}else if(e.isFile()){const b=await readFile(path.join(dir,e.name));assets.push({name:prefix+e.name,bytes:b.length,sha256:hash(b)});}else throw new Error('Unsupported application file type.');}}await visit(site);assets.sort((a,b)=>a.name.localeCompare(b.name));
  return {fixtures,assets,...(packageArchive?{package:{bytes:(await stat(packageArchive)).size,sha256:hash(await readFile(packageArchive))}}:{})};
 }
 let initial,pkg,packageInspection;

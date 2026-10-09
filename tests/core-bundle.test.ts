@@ -3,7 +3,12 @@ import { strFromU8, unzipSync } from 'fflate';
 import type { BugReport, BundleFile } from '../src/core/contracts';
 import { LIMITS } from '../src/core/contracts';
 import { buildBundle } from '../src/core/bundle';
-import { sanitizeHar } from '../src/core/redaction';
+import { sanitizeHar, sanitizeLog } from '../src/core/redaction';
+import { DEFAULT_REDACTION_POLICY, validateRedactionPolicy } from '../src/core/policy';
+import type { RedactionPolicy } from '../src/core/contracts';
+
+const buildBundleWithPolicy = buildBundle;
+const sanitizeLogWithPolicy = sanitizeLog;
 
 const report: BugReport = {
   title: 'Crash with token=report-secret',
@@ -146,5 +151,58 @@ describe('buildBundle', () => {
     const result = buildBundle([{ id: 'processed-large', kind: 'image', png: oversizedProcessedPng }], report);
     expect(result.summary.files[0].bytes).toBe(tinyPng().byteLength);
     expect(result.summary.files[0].omissions[0].code).toBe('png-metadata');
+  });
+
+  it('counts image source bytes toward the aggregate input cap before PNG validation', () => {
+    const oversizedImageInput = new Uint8Array(LIMITS.totalInputBytes + 1);
+    expect(() => buildBundle([{ id: 'oversized-image', kind: 'image', png: oversizedImageInput }], report)).toThrow(/aggregate input limit/i);
+  });
+
+  it('re-sanitizes custom-policy evidence and reports only a policy fingerprint, never its values', () => {
+    const policy = validateRedactionPolicy({
+      ...DEFAULT_REDACTION_POLICY,
+      name: 'private-literal-secret policy label',
+      sensitiveKeys: [...DEFAULT_REDACTION_POLICY.sensitiveKeys, 'private_id'],
+      literalRules: [{ value: 'private-literal-secret', replacement: '[LOCAL]' }],
+    });
+    const firstPass = sanitizeLogWithPolicy('private_id=private-key-secret private-literal-secret', policy);
+    const customReport: BugReport = {
+      ...report,
+      title: 'private-literal-secret issue',
+      actual: 'private_id=private-key-secret',
+    };
+    const result = buildBundleWithPolicy([
+      { id: 'custom-log', kind: 'log', text: firstPass.text, prior: firstPass },
+      { id: 'custom-har', kind: 'har', text: har.replace('har-secret', 'private-literal-secret') },
+    ], customReport, policy);
+    const entries = unzipSync(result.bytes);
+    const allText = Object.entries(entries).filter(([name]) => !name.endsWith('.png')).map(([, bytes]) => strFromU8(bytes)).join('\n');
+    const summary = JSON.parse(strFromU8(entries['processing-summary.json']));
+
+    expect(result.summary.schemaVersion).toBe(2);
+    expect(summary.policy).toEqual({ schemaVersion: 1, id: expect.stringMatching(/^[a-f0-9]{64}$/), bodyMode: 'omit' });
+    expect(allText).not.toContain('private-literal-secret');
+    expect(allText).not.toContain('private-key-secret');
+    expect(allText).not.toContain('private-literal-secret policy label');
+    expect(summary.files[0].changes).toBe(firstPass.changes);
+    expect(summary.files[0].omissions.map((item: { code: string; count: number }) => [item.code, item.count])).toEqual(
+      firstPass.omissions.map((item) => [item.code, item.count]),
+    );
+    expect(summary.files[0].omissions.every((item: { description: string }) => !item.description.includes('private'))).toBe(true);
+  });
+
+  it('preserves fixed supported-body omission codes across bundle re-sanitization', () => {
+    const policy = validateRedactionPolicy({ ...DEFAULT_REDACTION_POLICY, bodyMode: 'supported' });
+    const source = JSON.stringify({ log: { version: '1.2', creator: { name: 'test', version: '1' }, entries: [{
+      request: { method: 'POST', url: 'https://example.test/', postData: { mimeType: 'application/octet-stream', text: 'private-body-value' } },
+      response: { status: 200, content: {} },
+    }] } });
+    const firstPass = sanitizeHar(source, policy);
+    const result = buildBundleWithPolicy([{ id: 'supported-har', kind: 'har', text: firstPass.text, prior: firstPass }], report, policy);
+    const omission = result.summary.files[0].omissions.find((item) => item.code === 'body-unsupported');
+
+    expect(result.summary.schemaVersion).toBe(2);
+    expect(omission).toEqual({ code: 'body-unsupported', count: 1, description: 'An unsupported request or response body format was omitted.' });
+    expect(strFromU8(unzipSync(result.bytes)['evidence-001.har'])).not.toContain('private-body-value');
   });
 });

@@ -31,6 +31,10 @@ const server = http.createServer(async (request, response) => {
   catch { fail(400,'Invalid URL encoding.'); return; }
   if (/[\x00-\x1f\x7f]/.test(pathname)) { fail(400,'Invalid path.'); return; }
   if (!pathname.startsWith('/') || pathname.includes('\\') || pathname.split('/').includes('..') || pathname.split('/').includes('.')) { fail(404,'File not found.'); return; }
+  // Use one portable path profile: Windows alternate streams and aliases are never static assets.
+  if (pathname.split('/').slice(1).some(segment => !segment || /[:]/.test(segment) || /[. ]$/.test(segment) || /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(segment))) {
+    if (pathname !== '/') { fail(404,'File not found.'); return; }
+  }
   const relative = pathname==='/' ? 'index.html' : pathname.slice(1);
   const target = path.resolve(root, relative);
   if (!contained(target)) { fail(404,'File not found.'); return; }

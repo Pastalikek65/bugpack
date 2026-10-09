@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "packageLockSha256": "328865218e9b017c0d9845a69720a119e46c612148432ffac19a32fc0ef20335",
+  "packageLockSha256": "34bbbe14b3c4f7ebfe11645a30143d8d8d51922c6468a07839b8215b64a70abc",
   "scope": "npm lockfile inventory including optional packages; not every optional package is installed on each platform",
   "runtimeComponents": [
     {

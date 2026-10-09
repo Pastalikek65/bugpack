@@ -10,6 +10,7 @@ describe('local static distribution server', () => {
     const web = path.join(temp, 'web'); await mkdir(web);
     await writeFile(path.join(web, 'index.html'), '<!doctype html><title>BugPack fixture</title>');
     await writeFile(path.join(temp, 'outside.txt'), 'OUTSIDE-MUST-NOT-LEAK');
+    await writeFile(path.join(web, 'index.html:private'), 'STREAM-MUST-NOT-LEAK');
     const child = spawn(process.execPath, ['scripts/serve.mjs', '--root', web, '--port', '0'], { stdio: ['ignore', 'pipe', 'pipe'] });
     try {
       const base = await new Promise<string>((resolve, reject) => {
@@ -27,6 +28,9 @@ describe('local static distribution server', () => {
       expect((await fetch(base+'/%00')).status).toBe(400);
       expect((await fetch(base, { method: 'POST', body: 'private input' })).status).toBe(405);
       expect((await fetch(base+'/missing.js')).status).toBe(404);
+      for (const suffix of ['/index.html%3Aprivate', '/index.html.', '/index.html%20', '/CON', '/%2findex.html']) {
+        expect((await fetch(base+suffix)).status, suffix).toBe(404);
+      }
       expect((await fetch(base, { method: 'HEAD' })).status).toBe(200);
     } finally {
       child.kill(); await new Promise<void>(resolve => { if(child.exitCode!==null) resolve(); else child.once('exit',()=>resolve()); });
