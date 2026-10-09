@@ -2,7 +2,7 @@
 
 Inspect debugging evidence locally, remove sensitive values, and share a reviewed ZIP containing clean files and a bug report.
 
-BugPack is for developers and support teams who need to share a HAR, log or screenshot without attaching its original credentials and metadata. [Download a portable package](https://github.com/Pastalikek65/bugpack/releases). It runs locally without an account, upload backend, paid API or remote model. Each release includes SHA-256 checksums and `verification.json` identifying its exact source, platform tests and limitations.
+BugPack is for developers and support teams who need to share a HAR, log or screenshot without attaching its original credentials and metadata. [Download a portable package](https://github.com/Pastalikek65/bugpack/releases). It runs locally without an account, upload backend, paid API or remote model. Each release includes SHA-256 checksums and `verification.json` identifying its exact source, tested platforms and limitations. The [1.0.0 verification record](docs/verification.md#stable-100-release) summarizes its qualification scope. The 1.0.0 archives predate this documentation update; use their `verification.json` and `SHA256SUMS` for the exact archive identities and records. This later documentation commit does not alter or requalify those archives.
 
 ![Actual browser review of synthetic evidence with an opaque screenshot mask](examples/outputs/review.png)
 

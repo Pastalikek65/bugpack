@@ -27,9 +27,22 @@ In packaged mode, the public static-package inspector verifies the archive again
 
 The workload exercises a bounded local bundle path, not a universal performance limit. A run that hits a product work cap is recorded as failed; the benchmark does not increase product limits to force completion. It reports one machine-specific sample without a throughput target or cross-machine comparison. Automatic redaction remains incomplete, and the synthetic checks are not a privacy guarantee for real evidence.
 
-## Frozen beta CI samples
+## Stable 1.0.0 CI samples
 
-CI run [37912575939](https://github.com/Pastalikek65/bugpack/actions/runs/37912575939), at source `20c6cc524dc0cd4153c0ae718a606507c6ee9aad`, ran the same workload in both source and freshly extracted package modes. Node was 24.21.0; each record was checked against its CI job/step time window, raw profile, seeded inputs, complete output ZIP and exact CLI/package identity. These are four single samples of the **0.2.0 beta**, not measurements of the 1.0.0 candidate.
+CI run [37921280761](https://github.com/Pastalikek65/bugpack/actions/runs/37921280761), at clean source `97805ce3d17384f91e0b6afced4587bfd3c55bf7`, recorded the same synthetic workload in source and freshly extracted package modes. All four records passed on Node 24.21.0 and are bound by the release's `verification.json`. Each is one machine-specific sample; parent time includes CLI process startup and exit, while child time and maximum RSS cover only the CLI child.
+
+| CI platform | Mode | Parent wall time | CLI child wall time | CLI child maximum RSS |
+| --- | --- | ---: | ---: | ---: |
+| Windows x64 | Source | 450.6 ms | 397.4 ms | 121,430,016 bytes |
+| Windows x64 | Extracted package | 446.8 ms | 393.0 ms | 119,795,712 bytes |
+| Ubuntu 24.04 x64 | Source | 532.1 ms | 497.9 ms | 138,608,640 bytes |
+| Ubuntu 24.04 x64 | Extracted package | 528.2 ms | 494.0 ms | 137,793,536 bytes |
+
+The workload uses a 4 MiB synthetic log and a 1,000-entry HAR. These four samples do not establish a throughput target, cross-machine comparison or process-memory bound. They cover only the CLI child and synthetic local inputs; see [verification](verification.md#stable-100-release) for release scope and limitations.
+
+## Historical 0.2.0 beta CI samples
+
+CI run [37912575939](https://github.com/Pastalikek65/bugpack/actions/runs/37912575939), at source `20c6cc524dc0cd4153c0ae718a606507c6ee9aad`, ran the same workload in both source and freshly extracted package modes. Node was 24.21.0; each record was checked against its CI job/step time window, raw profile, seeded inputs, complete output ZIP and exact CLI/package identity. These four samples describe the **0.2.0 beta** only; use the stable 1.0.0 section above for the 1.0.0 CI samples.
 
 | CI platform | Mode | Parent wall time | CLI child wall time | CLI child maximum RSS |
 | --- | --- | ---: | ---: | ---: |
