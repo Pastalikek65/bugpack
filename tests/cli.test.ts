@@ -70,6 +70,7 @@ afterEach(async () => {
 describe('built CLI from an unrelated working directory', () => {
   it('provides help and a stable offline doctor result', async () => {
     const directory = await makeWorkspace();
+    const packageInfo = JSON.parse(await readFile(join(root, 'package.json'), 'utf8')) as { version: string };
     const help = invoke(directory, '--help');
     expect(help.status).toBe(0);
     expect(help.stdout).toContain('policy validate');
@@ -78,7 +79,27 @@ describe('built CLI from an unrelated working directory', () => {
     const doctor = invoke(directory, 'doctor', '--json');
     expect(doctor.status).toBe(0);
     expect(doctor.stderr).toBe('');
-    expect(JSON.parse(doctor.stdout)).toMatchObject({ ok: true, command: 'doctor', supported: true, network: 'not used', mode: 'offline' });
+    expect(JSON.parse(doctor.stdout)).toMatchObject({ ok: true, command: 'doctor', version: packageInfo.version, supported: true, network: 'not used', mode: 'offline' });
+  });
+
+  it('reports the embedded package version and rejects extra version arguments', async () => {
+    const directory = await makeWorkspace();
+    const packageInfo = JSON.parse(await readFile(join(root, 'package.json'), 'utf8')) as { version: string };
+
+    const human = invoke(directory, '--version');
+    expect(human.status).toBe(0);
+    expect(human.stderr).toBe('');
+    expect(human.stdout).toBe(`BugPack CLI ${packageInfo.version}\n`);
+
+    const json = invoke(directory, '--version', '--json');
+    expect(json.status).toBe(0);
+    expect(json.stderr).toBe('');
+    expect(JSON.parse(json.stdout)).toMatchObject({ ok: true, command: 'version', version: packageInfo.version });
+
+    const invalid = invoke(directory, '--version', '--unexpected', '--json');
+    expect(invalid.status).not.toBe(0);
+    expect(invalid.stderr).toBe('');
+    expect(JSON.parse(invalid.stdout)).toMatchObject({ ok: false, error: { code: 'INVALID_ARGUMENT' } });
   });
 
   it('validates policies without echoing configured literal values and rejects unknown versions', async () => {

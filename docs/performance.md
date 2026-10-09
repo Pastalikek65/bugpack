@@ -27,6 +27,19 @@ In packaged mode, the public static-package inspector verifies the archive again
 
 The workload exercises a bounded local bundle path, not a universal performance limit. A run that hits a product work cap is recorded as failed; the benchmark does not increase product limits to force completion. It reports one machine-specific sample without a throughput target or cross-machine comparison. Automatic redaction remains incomplete, and the synthetic checks are not a privacy guarantee for real evidence.
 
+## Frozen beta CI samples
+
+CI run [37912575939](https://github.com/Pastalikek65/bugpack/actions/runs/37912575939), at source `20c6cc524dc0cd4153c0ae718a606507c6ee9aad`, ran the same workload in both source and freshly extracted package modes. Node was 24.21.0; each record was checked against its CI job/step time window, raw profile, seeded inputs, complete output ZIP and exact CLI/package identity. These are four single samples of the **0.2.0 beta**, not measurements of the 1.0.0 candidate.
+
+| CI platform | Mode | Parent wall time | CLI child wall time | CLI child maximum RSS |
+| --- | --- | ---: | ---: | ---: |
+| Windows x64 | Source | 326.8 ms | 281.9 ms | 120,987,648 bytes |
+| Windows x64 | Extracted package | 334.2 ms | 287.4 ms | 126,668,800 bytes |
+| Ubuntu 24.04 x64 | Source | 553.7 ms | 522.4 ms | 134,258,688 bytes |
+| Ubuntu 24.04 x64 | Extracted package | 511.7 ms | 480.0 ms | 135,475,200 bytes |
+
+The parent timing includes process startup and exit; child timing and maximum RSS cover only the actual CLI process. They exclude the browser, workers and other machine processes. These measurements are not throughput promises or a valid cross-machine performance comparison. Each retained raw record includes CPU time, hashes, profiler units and availability. Release verification binds the exact records; a fresh candidate must rerun them. The review retains the distinction between measured values and unavailable metrics.
+
 ## Pre-freeze development baseline
 
 The recorded sample below is a pre-freeze, dirty Windows 11 development baseline only. It is not a performance measurement of a frozen or public package, and it does not qualify a release. The run's Git commit pointer was `de47154576f9e260fa6de286d785bbca56c1f77d`, but the source snapshot contained 39 dirty or untracked paths. Its `sourceStateBefore.sha256` is `455f4373abb85eaa4bf66d00cb271f0df359e079563b39768431ca798a222412`; this is a raw machine-local snapshot, not a CI-verified source identity or public attestation. Linux performance and frozen-package performance remain unmeasured here.

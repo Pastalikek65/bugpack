@@ -3,12 +3,15 @@
 Node.js 24 is required. In an extracted package, run `node cli/bugpack.mjs --help`; in a source checkout, run `npm ci`, `npm run build`, then `node dist/cli/bugpack.mjs --help`. No account or network connection is required for processing.
 
 ```sh
+node cli/bugpack.mjs --version
 node cli/bugpack.mjs doctor --json
 node cli/bugpack.mjs clean --kind har --input request.har --out request-clean.har --json
 node cli/bugpack.mjs clean --kind log --input app.log --out app-clean.log
 node cli/bugpack.mjs policy validate --file bugpack-policy.json --json
 node cli/bugpack.mjs bundle --har request-clean.har --log app-clean.log --report report.json --out reviewed.zip --reviewed
 ```
+
+`--version --json` reports the version embedded in the CLI at build time. `doctor --json` includes that same version and checks the required Node.js runtime.
 
 Create the output parent directory first. Existing outputs are never overwritten. Input files remain unchanged. The CLI refuses links and non-regular inputs; diagnostic JSON uses stable error codes and does not print file contents. `--har` and `--log` may be repeated up to the shared 50-file and 64 MiB limits.
 

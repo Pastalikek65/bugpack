@@ -1,6 +1,6 @@
 {
   "name": "bugpack",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Inspect and redact local debugging evidence, then export a reviewed bug report bundle.",

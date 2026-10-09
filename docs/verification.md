@@ -1,6 +1,12 @@
 # Verification
 
-Current status: [0.1.0 MVP preview is published](https://github.com/Pastalikek65/bugpack/releases/tag/v0.1.0), qualified from exact commit `de47154576f9e260fa6de286d785bbca56c1f77d` and CI `37897925690`. Both Windows/Linux passed 33 tests in five files, actual source and extracted-package twelve-step browser acceptance, seeded-secret ZIP inspection, opaque/all-unmasked pixel checks and full 33-file archive/tree verification. The same Windows CI ZIP passed twelve additional steps on Windows 11. Release verification records hashes, host scope, separate Windows 11 OS attestation and limitations. Stable v1 is not published; current policy/CLI beta changes require fresh independent and cross-platform package qualification.
+Use a release's `verification.json` and SHA256SUMS to identify its qualified source and distribution files. This checkout's version is a candidate until its corresponding stable release is public. Qualification requires fresh Windows/Linux CI, actual source and extracted-package browser/policy/CLI flows, portable startup and format compatibility, dependency/license checks, raw performance records and independent review. A green build alone is insufficient. Test and review evidence is limited to the reported hosts and synthetic inputs; it does not establish universal privacy or an OS resource sandbox.
+
+The MVP [0.1.0 release](https://github.com/Pastalikek65/bugpack/releases/tag/v0.1.0) was qualified at `de47154576f9e260fa6de286d785bbca56c1f77d`, CI `37897925690`: each platform passed 33 tests in five files and twelve real browser steps in source/package, including opaque/all-unmasked pixels, seeded-secret ZIP checks and the whole 33-file package. The exact Windows CI ZIP also passed on Windows 11.
+
+The 0.2.0 beta source `20c6cc524dc0cd4153c0ae718a606507c6ee9aad`, CI `37912575939`, passed 73 tests in nine files per platform, actual browser 12/policy 9/CLI 11 steps in source and package, full 39-file package comparison and a zero-vulnerability full dependency audit. The same Windows CI ZIP passed the three suites on Windows 11 under an extraction path containing spaces. Actual Windows start.cmd startup, packaged index/security headers and owned-process cleanup were also checked. Four source/package benchmark records are described in [performance](performance.md). These beta results do not replace fresh stable-candidate qualification.
+
+Versioned compatibility covers policy schema 1 and summary schemas 1/2. The app does not store its workspace or import output ZIPs. Old reviewed HAR/log text can be processed again, but an omitted body and its old summary count history cannot be restored from that text.
 
 ## Retained early MVP development records
 

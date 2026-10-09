@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "kind": "synthetic-policy-example-fixture-provenance",
+  "fixture": {
+    "path": "examples/policy-v1.json",
+    "bytes": 1049,
+    "sha256": "e640393ea99bb489a241df8f97f76219611abb8cc28f1b4ffea71ebe0cff27ef",
+    "policySchemaVersion": 1,
+    "bodyMode": "supported",
+    "demonstrationName": "PRIVATE_POLICY_NAME",
+    "demonstrationLiteral": "PRIVATE_LITERAL_SEED",
+    "demonstrationReplacement": "[REDACTED]",
+    "demonstrationExtraSensitiveKey": "customer_id"
+  },
+  "source": {
+    "savedUiExportPath": "artifacts/policy-da084e3c-d16b-4fc5-b9b0-6b3168d06c4b/saved-policy.json",
+    "savedUiExportBytes": 1049,
+    "savedUiExportSha256": "e640393ea99bb489a241df8f97f76219611abb8cc28f1b4ffea71ebe0cff27ef",
+    "sourceCommit": "20c6cc524dc0cd4153c0ae718a606507c6ee9aad",
+    "policyAcceptanceRecordPath": "artifacts/policy-da084e3c-d16b-4fc5-b9b0-6b3168d06c4b/acceptance.json",
+    "policyAcceptanceRecordBytes": 10089,
+    "policyAcceptanceRecordSha256": "fcbe061544dc0757d5e3a01de69c9231d4c75aa265937eaedfaa53fcb4713621",
+    "windowsAdditionalProofPath": ".control/beta-win11-extra-proof.json",
+    "windowsAdditionalProofSha256": "548f4e2bc3857a519a7bbe5c35e532dd4a97ca65cfc1ad04a222ed93b16f9bcc",
+    "windowsCIRunId": 37912575939,
+    "windowsProofStatus": "passed-extra-windows11"
+  },
+  "limits": [
+    "The fixture preserves the exact saved UI export bytes; its PRIVATE_* literal and name values are demonstration values.",
+    "policySchemaVersion describes the redaction-policy document format and makes no product-version claim."
+  ]
+}

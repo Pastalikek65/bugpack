@@ -14,6 +14,8 @@ import {
 } from '../core/policy.ts';
 import { sanitizeHar, sanitizeLog } from '../core/redaction.ts';
 
+declare const __BUGPACK_VERSION__: string;
+
 const HELP = `BugPack local text CLI
 
 Usage:
@@ -255,7 +257,7 @@ async function run(args: string[]): Promise<{ result: unknown; human: string }> 
     const parsed = parseOptions(args.slice(1), [], []);
     if (parsed.values.size || parsed.flags.size) fail('INVALID_ARGUMENT', 'The doctor command accepts only --json.');
     const major = Number(/^v?(\d+)/.exec(process.versions.node)?.[1] ?? 0);
-    const result = { ok: major === 24, command: 'doctor', runtime: `node ${process.versions.node}`, supported: major === 24, network: 'not used', mode: 'offline' };
+    const result = { ok: major === 24, command: 'doctor', version: __BUGPACK_VERSION__, runtime: `node ${process.versions.node}`, supported: major === 24, network: 'not used', mode: 'offline' };
     if (!result.ok) fail('NODE_VERSION_UNSUPPORTED', 'BugPack CLI requires Node.js 24.');
     return { result, human: `BugPack CLI is ready on Node.js ${process.versions.node}. This check made no network requests.` };
   }
@@ -349,6 +351,15 @@ async function main(): Promise<void> {
   const json = raw.includes('--json');
   const args = raw.filter((token) => token !== '--json');
   try {
+    if (raw.includes('--version')) {
+      const jsonOptions = raw.filter((token) => token === '--json');
+      if (args.length !== 1 || args[0] !== '--version' || jsonOptions.length > 1) {
+        fail('INVALID_ARGUMENT', 'The --version option cannot be combined with other arguments.');
+      }
+      const result = { ok: true, command: 'version', version: __BUGPACK_VERSION__ };
+      process.stdout.write(json ? resultJson(result) : `BugPack CLI ${__BUGPACK_VERSION__}\n`);
+      return;
+    }
     const { result, human } = await run(args);
     process.stdout.write(json ? resultJson(result) : `${human}\n`);
   } catch (error) {

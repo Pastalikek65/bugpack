@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "description": "Real synthetic browser output from the qualified 0.2.0 source and exact Windows CI package; image shown for the unchanged workbench flow.",
+  "sourceCommit": "20c6cc524dc0cd4153c0ae718a606507c6ee9aad",
+  "ciRunId": 37912575939,
+  "packageSha256": "0f1eb89bfa04bd3905c5f97feda652e4af90181aeff5da3ea59fc9606fe2ac79",
+  "acceptanceRecordSha256": "7d2aaeb7d2e22590c4396e0e9b1e9adb08c59a8ad26f4a7cfcbc808afde4a173",
+  "files": [
+    {
+      "name": "review.png",
+      "bytes": 131568,
+      "sha256": "2d9ddff89db8a4dc9e9dc4309362f75c1aa41a2e2b7ae8db4a9c117acdd93fbe"
+    },
+    {
+      "name": "clean-mask.png",
+      "bytes": 11849,
+      "sha256": "676ee6636e9bb26f2daa9fa76b64ae614aae6d3e6cfb3dac1278b79f314640f2"
+    },
+    {
+      "name": "bug-report.md",
+      "bytes": 310,
+      "sha256": "f2e45102d52fc7165d88dc972616c159c7c19897d3eac722d3ed5780f7de33b3"
+    },
+    {
+      "name": "evidence-001.har",
+      "bytes": 1155,
+      "sha256": "796f8d7abec7d4d18b7cad94525fbc2150118e4c4f1c5564f748ef7968c092f5"
+    },
+    {
+      "name": "evidence-002.log",
+      "bytes": 166,
+      "sha256": "a3614ad683a392378b4ea997dfcf13db27f2ecca9373b7cf24056e67fb1dee4c"
+    },
+    {
+      "name": "evidence-003.png",
+      "bytes": 11849,
+      "sha256": "676ee6636e9bb26f2daa9fa76b64ae614aae6d3e6cfb3dac1278b79f314640f2"
+    },
+    {
+      "name": "processing-summary.json",
+      "bytes": 2325,
+      "sha256": "6e0fdfce14ccd28ebba410b4118d65697af7f4e5a7dc138a4dc5e5186e1767e9"
+    }
+  ],
+  "bundleSha256": "adad1efb923d15416cf3a27d730ac51c0db61c006e5498e0df3e31f98d1d1a25"
+}

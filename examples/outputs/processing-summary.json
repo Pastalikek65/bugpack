@@ -5,7 +5,7 @@
       "name": "evidence-001.har",
       "kind": "har",
       "bytes": 1155,
-      "changes": 17,
+      "changes": 19,
       "omissions": [
         {
           "code": "unknown-field",

@@ -17,6 +17,7 @@ jobs:
       - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0
       - uses: actions/setup-node@v7.1.0
         with:
           node-version: '24'
@@ -65,17 +66,25 @@ jobs:
         run: |
           $packageFiles = @(Get-ChildItem -LiteralPath release -Filter '*.zip' -File)
           if ($packageFiles.Count -ne 1) { throw 'Exactly one Windows package is required.' }
-          $install = Join-Path $env:RUNNER_TEMP ('bugpack-install-' + [guid]::NewGuid().ToString('N'))
-          Expand-Archive -LiteralPath $packageFiles[0].FullName -DestinationPath $install
-          $roots = @(Get-ChildItem -LiteralPath $install -Directory)
+          $install = Join-Path $env:RUNNER_TEMP ('bugpack install-' + [guid]::NewGuid().ToString('N'))
+          New-Item -ItemType Directory -Path $install | Out-Null
+          $archive = Join-Path $install $packageFiles[0].Name
+          Copy-Item -LiteralPath $packageFiles[0].FullName -Destination $archive
+          $unpacked = Join-Path $install 'unpacked'
+          Expand-Archive -LiteralPath $archive -DestinationPath $unpacked
+          $roots = @(Get-ChildItem -LiteralPath $unpacked -Directory)
           if ($roots.Count -ne 1) { throw 'Exactly one extracted application root is required.' }
-          node scripts/acceptance.mjs --app-root $roots[0].FullName --package $packageFiles[0].FullName
+          node scripts/acceptance.mjs --app-root $roots[0].FullName --package $archive
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          node scripts/acceptance-policy.mjs --app-root $roots[0].FullName --package $packageFiles[0].FullName
+          node scripts/acceptance-policy.mjs --app-root $roots[0].FullName --package $archive
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          node scripts/acceptance-cli.mjs --app-root $roots[0].FullName --package $packageFiles[0].FullName
+          node scripts/acceptance-cli.mjs --app-root $roots[0].FullName --package $archive
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          node scripts/benchmark.mjs --app-root $roots[0].FullName --package $packageFiles[0].FullName
+          node scripts/benchmark.mjs --app-root $roots[0].FullName --package $archive
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node scripts/acceptance-portable.mjs --app-root $roots[0].FullName --package $archive
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node scripts/acceptance-compatibility.mjs --app-root $roots[0].FullName --package $archive
           exit $LASTEXITCODE
       - name: Linux fresh static archive acceptance
         if: runner.os == 'Linux'
@@ -85,14 +94,19 @@ jobs:
           shopt -s nullglob
           packages=(release/*.tar.gz)
           test "${#packages[@]}" -eq 1
-          install=$(mktemp -d "${RUNNER_TEMP}/bugpack-install-XXXXXXXX")
-          tar -xzf "${packages[0]}" -C "$install"
-          roots=("$install"/*)
+          install=$(mktemp -d "${RUNNER_TEMP}/bugpack install-XXXXXXXX")
+          archive="$install/$(basename "${packages[0]}")"
+          cp -- "${packages[0]}" "$archive"
+          mkdir "$install/unpacked"
+          tar -xzf "$archive" -C "$install/unpacked"
+          roots=("$install/unpacked"/*)
           test "${#roots[@]}" -eq 1
-          node scripts/acceptance.mjs --app-root "${roots[0]}" --package "${packages[0]}"
-          node scripts/acceptance-policy.mjs --app-root "${roots[0]}" --package "${packages[0]}"
-          node scripts/acceptance-cli.mjs --app-root "${roots[0]}" --package "${packages[0]}"
-          node scripts/benchmark.mjs --app-root "${roots[0]}" --package "${packages[0]}"
+          node scripts/acceptance.mjs --app-root "${roots[0]}" --package "$archive"
+          node scripts/acceptance-policy.mjs --app-root "${roots[0]}" --package "$archive"
+          node scripts/acceptance-cli.mjs --app-root "${roots[0]}" --package "$archive"
+          node scripts/benchmark.mjs --app-root "${roots[0]}" --package "$archive"
+          node scripts/acceptance-portable.mjs --app-root "${roots[0]}" --package "$archive"
+          node scripts/acceptance-compatibility.mjs --app-root "${roots[0]}" --package "$archive"
       - uses: actions/upload-artifact@v7.0.2
         if: always()
         with:
@@ -115,6 +129,8 @@ jobs:
             artifacts/policy-*/processing-summary.json
             artifacts/cli-*/**
             artifacts/benchmark-*/**
+            artifacts/portable-*/**
+            artifacts/compatibility-*/**
             release/*.zip
             release/*.tar.gz
             release/SHA256SUMS.txt
