@@ -1,0 +1,15 @@
+* text=auto
+*.ts text eol=lf
+*.tsx text eol=lf
+*.mjs text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.png binary
+*.jpg binary
+*.zip binary
+*.css text eol=lf
+*.html text eol=lf
+*.yml text eol=lf
+*.har -text
+*.log -text
+third_party/licenses/* -text

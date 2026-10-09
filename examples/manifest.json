@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Synthetic debugging evidence; not real credentials.",
+  "secrets": [
+    "AUTH_SEED_0123456789",
+    "COOKIE_SEED_0123456789",
+    "QUERY_SEED_0123456789",
+    "BODY_SEED_0123456789",
+    "EXTENSION_SEED_0123456789",
+    "LOG_SEED_0123456789",
+    "IMAGE_META_SEED_0123456789"
+  ],
+  "screenshotMask": {
+    "x": 20,
+    "y": 94,
+    "width": 451,
+    "height": 34
+  },
+  "manualLogValue": "private@example.test",
+  "files": [
+    {
+      "name": "sample.har",
+      "bytes": 2770,
+      "sha256": "a194838c9eb046e6e1f1af587302b86a69673d5dd682af8ad314a58284e5ef08"
+    },
+    {
+      "name": "sample.log",
+      "bytes": 197,
+      "sha256": "0e3d760e588cf89d522ab7fc26ea1adabd9c48af354835db8cf1172cb86cfc37"
+    },
+    {
+      "name": "sample.png",
+      "bytes": 8963,
+      "sha256": "f99e0f6c2c61491e40887ee52cd647562829c1e8c52c2da425bb0e45f519099b"
+    },
+    {
+      "name": "sample.jpg",
+      "bytes": 15982,
+      "sha256": "329cd5ed6407e23add783760b0ebe46757a79ea90733600a06efb18b693248dd"
+    }
+  ]
+}

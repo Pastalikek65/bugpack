@@ -1,0 +1,100 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+        timeout-minutes: 12
+      - name: Linux scoped Chromium sandbox profile
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo timeout 5m apt-get update
+          sudo timeout 5m apt-get install -y --no-install-recommends apparmor
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=1
+          test "$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns)" = 1
+          profile_path=$(mktemp)
+          trap 'rm -f "$profile_path"' EXIT
+          cat > "$profile_path" <<EOF
+          abi <abi/4.0>,
+          include <tunables/global>
+          profile bugpack-ci-chromium ${HOME}/.cache/ms-playwright/chromium-*/chrome-linux64/chrome flags=(unconfined) { userns, }
+          profile bugpack-ci-headless ${HOME}/.cache/ms-playwright/chromium_headless_shell-*/chrome-headless-shell-linux64/chrome-headless-shell flags=(unconfined) { userns, }
+          EOF
+          sudo install -o root -g root -m 0644 "$profile_path" /etc/apparmor.d/bugpack-ci
+          sudo apparmor_parser -r /etc/apparmor.d/bugpack-ci
+          for name in bugpack-ci-chromium bugpack-ci-headless; do
+            sudo grep -Fq "$name" /sys/kernel/security/apparmor/profiles
+          done
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: node scripts/acceptance.mjs
+      - run: npm audit --audit-level=high
+      - name: Retain full dependency audit
+        shell: bash
+        run: npm audit --json > artifacts/audit.json
+      - run: node scripts/notices.mjs
+      - run: node scripts/package.mjs
+      - name: Windows fresh static archive acceptance
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $packageFiles = @(Get-ChildItem -LiteralPath release -Filter '*.zip' -File)
+          if ($packageFiles.Count -ne 1) { throw 'Exactly one Windows package is required.' }
+          $install = Join-Path $env:RUNNER_TEMP ('bugpack-install-' + [guid]::NewGuid().ToString('N'))
+          Expand-Archive -LiteralPath $packageFiles[0].FullName -DestinationPath $install
+          $roots = @(Get-ChildItem -LiteralPath $install -Directory)
+          if ($roots.Count -ne 1) { throw 'Exactly one extracted application root is required.' }
+          node scripts/acceptance.mjs --app-root $roots[0].FullName --package $packageFiles[0].FullName
+          exit $LASTEXITCODE
+      - name: Linux fresh static archive acceptance
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          packages=(release/*.tar.gz)
+          test "${#packages[@]}" -eq 1
+          install=$(mktemp -d "${RUNNER_TEMP}/bugpack-install-XXXXXXXX")
+          tar -xzf "${packages[0]}" -C "$install"
+          roots=("$install"/*)
+          test "${#roots[@]}" -eq 1
+          node scripts/acceptance.mjs --app-root "${roots[0]}" --package "${packages[0]}"
+      - uses: actions/upload-artifact@v7.0.2
+        if: always()
+        with:
+          name: bugpack-${{ runner.os }}-${{ github.sha }}
+          if-no-files-found: error
+          path: |
+            artifacts/acceptance-*/acceptance.json
+            artifacts/acceptance-*/failure.json
+            artifacts/acceptance-*/failure.png
+            artifacts/acceptance-*/review.png
+            artifacts/acceptance-*/clean-mask.png
+            artifacts/acceptance-*/*-bundle.zip
+            artifacts/acceptance-*/processing-summary.json
+            artifacts/audit.json
+            release/*.zip
+            release/*.tar.gz
+            release/SHA256SUMS.txt

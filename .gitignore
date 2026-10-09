@@ -1,0 +1,8 @@
+node_modules/
+dist/
+artifacts/
+release/
+.control/
+*.log
+!examples/sample.log
+!examples/outputs/evidence-002.log

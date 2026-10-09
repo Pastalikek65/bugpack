@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "files": [
+    {
+      "name": "evidence-001.har",
+      "kind": "har",
+      "bytes": 1155,
+      "changes": 17,
+      "omissions": [
+        {
+          "code": "unknown-field",
+          "count": 2,
+          "description": "Unknown HAR fields and extensions were omitted."
+        },
+        {
+          "code": "header",
+          "count": 4,
+          "description": "Sensitive and unapproved HTTP headers were omitted."
+        },
+        {
+          "code": "query-string",
+          "count": 2,
+          "description": "HAR queryString copies were omitted; the sanitized request URL is retained."
+        },
+        {
+          "code": "cookie",
+          "count": 2,
+          "description": "HAR cookies were omitted."
+        },
+        {
+          "code": "body",
+          "count": 2,
+          "description": "HAR request and response bodies were omitted."
+        },
+        {
+          "code": "cache",
+          "count": 1,
+          "description": "HAR cache data was omitted."
+        },
+        {
+          "code": "entry-metadata",
+          "count": 1,
+          "description": "HAR network and page metadata were omitted."
+        },
+        {
+          "code": "comment",
+          "count": 1,
+          "description": "HAR comments were omitted."
+        }
+      ],
+      "masks": 0
+    },
+    {
+      "name": "evidence-002.log",
+      "kind": "log",
+      "bytes": 166,
+      "changes": 2,
+      "omissions": [],
+      "masks": 0
+    },
+    {
+      "name": "evidence-003.png",
+      "kind": "image",
+      "bytes": 11849,
+      "changes": 1,
+      "omissions": [
+        {
+          "code": "image-regenerated",
+          "count": 1,
+          "description": "Image pixels were regenerated as PNG; source metadata was omitted."
+        }
+      ],
+      "masks": 1
+    }
+  ],
+  "limitations": [
+    "Automatic redaction is incomplete; inspect every included item before sharing.",
+    "HAR request and response bodies, cookies, unapproved headers, and unknown fields are omitted.",
+    "The bug report uses bounded credential patterns and has no automatic personal-information guarantee.",
+    "PNG ancillary metadata is removed; verify image masks before sharing.",
+    "Prior processing counts are app-reported and are not an independent audit of original inputs."
+  ]
+}

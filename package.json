@@ -1,0 +1,35 @@
+{
+  "name": "bugpack",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Inspect and redact local debugging evidence, then export a reviewed bug report bundle.",
+  "license": "Apache-2.0",
+  "author": "Pastalikek65",
+  "repository": "https://github.com/Pastalikek65/bugpack",
+  "engines": {
+    "node": "^24.0.0"
+  },
+  "scripts": {
+    "dev": "vite --host localhost --port 5174 --strictPort",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "preview": "vite preview --host localhost --port 4174 --strictPort"
+  },
+  "dependencies": {
+    "fflate": "0.8.3",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.4",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "typescript": "7.0.2",
+    "vite": "8.3.4",
+    "vitest": "5.0.3",
+    "playwright": "1.64.0"
+  }
+}
