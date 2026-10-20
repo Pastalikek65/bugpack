@@ -13,6 +13,7 @@ interface BaseEvidence {
   name: string;
   size: number;
   status: Status;
+  reviewed?: boolean;
   error?: string;
 }
 
@@ -79,14 +80,12 @@ export default function App() {
   const selected = useMemo(() => entries.find((item) => item.id === selectedId) ?? null, [entries, selectedId]);
   const totalBytes = entries.reduce((sum, item) => sum + item.size, 0);
   const readyCount = entries.filter((item) => item.status === 'ready').length;
+  const reviewedCount = entries.filter((item) => item.status === 'ready' && item.reviewed).length;
   const failedCount = entries.filter((item) => item.status === 'failed').length;
   const allReady = entries.length > 0 && entries.every((item) => item.status === 'ready');
   const reportComplete = Object.values(report).every((value) => value.trim().length > 0);
-  const imageReady = entries.every((item) => item.kind !== 'image' || (
-    Boolean(item.cleanPng) && item.masks.length === item.appliedMasks.length && item.masks.every((mask, index) => sameMask(mask, item.appliedMasks[index]!)) &&
-    (!item.masks.some((mask) => mask.width === 0 || mask.height === 0) || item.allowZeroArea)
-  ));
-  const canAcknowledge = allReady && reportComplete && imageReady && !busy;
+  const imageReady = entries.every((item) => item.kind !== 'image' || canReviewFile(item));
+  const canAcknowledge = allReady && reportComplete && imageReady && entries.every((item) => item.reviewed) && !busy;
 
   useEffect(() => () => {
     workerRef.current?.cancel();
@@ -106,17 +105,21 @@ export default function App() {
     setExportSummary(null);
   }, []);
 
-  const invalidateReview = useCallback(() => {
+  const invalidateExport = useCallback(() => {
     revisionRef.current += 1;
-    setReviewed(false);
     revokeExport();
     setExportError('');
   }, [revokeExport]);
 
+  const invalidateReview = useCallback(() => {
+    invalidateExport();
+    setReviewed(false);
+  }, [invalidateExport]);
+
   const updateEntry = useCallback((id: string, update: (current: Evidence) => Evidence, invalidate = false) => {
-    if (invalidate) invalidateReview();
-    setEntries((current) => current.map((item) => item.id === id ? update(item) : item));
-  }, [invalidateReview]);
+    if (invalidate) invalidateExport();
+    setEntries((current) => current.map((item) => item.id === id ? { ...update(item), ...(invalidate ? { reviewed: false } : {}) } : item));
+  }, [invalidateExport]);
 
   const setOperation = <T extends WorkerResult,>(operation: WorkerOperation<T>): Promise<T> => {
     workerRef.current = operation;
@@ -159,7 +162,7 @@ export default function App() {
               type: 'process-image', bytes: buffer, masks: [], allowZeroArea: false,
             }, [buffer]);
             const result = await setOperation(operation);
-            invalidateReview();
+            invalidateExport();
             updateEntry(item.id, (current) => current.kind === 'image' ? {
               ...current, status: 'ready', cleanPng: result.png, width: result.width, height: result.height,
               masks: [], appliedMasks: [], imageError: undefined, error: undefined,
@@ -180,7 +183,7 @@ export default function App() {
               type: 'sanitize-text', kind: item.kind, text: raw, policy: appliedPolicy,
             });
             const result = await setOperation(operation);
-            invalidateReview();
+            invalidateExport();
             updateEntry(item.id, (current) => current.kind === 'har' || current.kind === 'log' ? {
               ...current, status: 'ready', cleanText: result.text, changes: result.changes, omissions: result.omissions, error: undefined,
             } : current);
@@ -235,7 +238,7 @@ export default function App() {
       return { ...base, kind, source: file };
     });
 
-    invalidateReview();
+    invalidateExport();
     setEntries((current) => [...current, ...additions]);
     setSelectedId(additions[0]?.id ?? selectedId);
     const processable = additions.filter((item): item is TextEvidence | ImageEvidence => Boolean(item.kind) && item.status === 'queued');
@@ -261,7 +264,7 @@ export default function App() {
 
   const removeEntry = (id: string) => {
     if (busy) return;
-    invalidateReview();
+    invalidateExport();
     setEntries((current) => current.filter((item) => item.id !== id));
     if (selectedId === id) setSelectedId(entries.find((item) => item.id !== id)?.id ?? null);
   };
@@ -277,10 +280,9 @@ export default function App() {
 
   const changeMasks = (item: ImageEvidence, masks: PixelMask[], options: { allowZeroArea?: boolean } = {}) => {
     const allowZeroArea = options.allowZeroArea ?? item.allowZeroArea;
-    invalidateReview();
     updateEntry(item.id, (current) => current.kind === 'image' ? {
       ...current, masks, allowZeroArea, imageError: undefined,
-    } : current);
+    } : current, true);
   };
 
   const applyMasks = async (item: ImageEvidence) => {
@@ -301,11 +303,10 @@ export default function App() {
         type: 'process-image', bytes: buffer, masks: item.masks, allowZeroArea: item.allowZeroArea,
       }, [buffer]);
       const result = await setOperation(operation);
-      invalidateReview();
       updateEntry(item.id, (current) => current.kind === 'image' ? {
         ...current, cleanPng: result.png, width: result.width, height: result.height,
         appliedMasks: item.masks.map((mask) => ({ ...mask })), imageError: undefined,
-      } : current);
+      } : current, true);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Image mask processing failed.';
       updateEntry(item.id, (current) => current.kind === 'image' ? { ...current, imageError: message } : current);
@@ -414,6 +415,7 @@ export default function App() {
   };
 
   const acknowledge = (checked: boolean) => {
+    if (checked && !canAcknowledge) return;
     setReviewed(checked);
     if (!checked) {
       revisionRef.current += 1;
@@ -421,14 +423,20 @@ export default function App() {
     }
   };
 
+  const acknowledgeFile = (item: Evidence, checked: boolean) => {
+    if (item.status !== 'ready' || !item.kind || (checked && !canReviewFile(item))) return;
+    invalidateExport();
+    setEntries((current) => current.map((entry) => entry.id === item.id ? { ...entry, reviewed: checked } : entry));
+  };
+
   const sourceUrl = useObjectUrl(selected?.kind === 'image' ? selected.source : null);
   const cleanImageUrl = useObjectUrl(selected?.kind === 'image' ? selected.cleanPng ?? null : null, 'image/png');
 
   const applyPolicy = async (next: RedactionPolicy) => {
     if (busy) throw new Error('Wait for the current operation to finish.');
-    invalidateReview();
+    invalidateExport();
     setPolicy(next);
-    const queued = entries.filter((item): item is TextEvidence => item.kind === 'har' || item.kind === 'log').map(item => ({ ...item, status: 'queued' as const, cleanText: undefined, changes: undefined, omissions: undefined, error: undefined }));
+    const queued = entries.filter((item): item is TextEvidence => item.kind === 'har' || item.kind === 'log').map(item => ({ ...item, status: 'queued' as const, reviewed: false, cleanText: undefined, changes: undefined, omissions: undefined, error: undefined }));
     const ids = new Set(queued.map(item => item.id));
     setEntries(current => current.map(item => ids.has(item.id) ? queued.find(next => next.id === item.id)! : item));
     const rebuilt = await processFiles(queued, next);
@@ -492,7 +500,7 @@ export default function App() {
 
             <div className="file-list-heading">
               <span>Evidence list</span>
-              <span>{readyCount} ready{failedCount > 0 ? ` · ${failedCount} failed` : ''}</span>
+              <span>{reviewedCount}/{readyCount} reviewed{failedCount > 0 ? ` · ${failedCount} failed` : ''}</span>
             </div>
             <ul className="file-list" aria-label="Evidence files">
               {entries.map((item) => (
@@ -502,6 +510,7 @@ export default function App() {
                     <span className="file-row-copy">
                       <strong title={item.name}>{item.name}</strong>
                       <span>{item.kind ? kindLabel(item.kind) : 'Unsupported'} · {formatBytes(item.size)}</span>
+                      {item.status === 'ready' && <span className={item.reviewed ? 'file-review-done' : 'file-review-pending'}>{item.reviewed ? 'Reviewed' : 'Review pending'}</span>}
                     </span>
                     <span className={`status-dot status-${item.status}`} aria-label={statusLabel(item.status)} title={statusLabel(item.status)} />
                   </button>
@@ -566,6 +575,16 @@ export default function App() {
             ) : (
               <div className="failure-state"><h3>Unsupported file</h3><p>Choose a HAR, UTF-8 log or PNG/JPEG image.</p></div>
             )}
+            {selected?.status === 'ready' && selected.kind && (
+              <div className="file-approval">
+                <label className={`review-check ${canReviewFile(selected) && !busy ? '' : 'is-disabled'}`}>
+                  <input type="checkbox" checked={Boolean(selected.reviewed)} onChange={(event) => acknowledgeFile(selected, event.currentTarget.checked)} disabled={!canReviewFile(selected) || busy} />
+                  <span className="review-check-box" aria-hidden="true" />
+                  <span>I reviewed {selected.name}</span>
+                </label>
+                {selected.kind === 'image' && !canReviewFile(selected) && <p className="form-hint">Apply the current masks and inspect the regenerated image before approving this file.</p>}
+              </div>
+            )}
           </section>
 
           <aside id="review-panel" className="panel report-panel" aria-labelledby="report-title">
@@ -599,9 +618,9 @@ export default function App() {
             <label className={`review-check ${canAcknowledge ? '' : 'is-disabled'}`}>
               <input type="checkbox" checked={reviewed} onChange={(event) => acknowledge(event.currentTarget.checked)} disabled={!canAcknowledge} />
               <span className="review-check-box" aria-hidden="true" />
-              <span>I reviewed each cleaned file and report, including any omissions and masks.</span>
+              <span>I reviewed the bug report.</span>
             </label>
-            {!canAcknowledge && <p className="form-hint">Ready files, a complete report and applied image masks are required before review.</p>}
+            {!canAcknowledge && <p className="form-hint">Review every ready file ({reviewedCount}/{entries.length}) and complete the report before export.</p>}
 
             <button className="button button-primary export-button" type="button" onClick={() => void exportBundle()} disabled={!canAcknowledge || !reviewed || busy}>
               <span aria-hidden="true">↓</span> Build and download ZIP
@@ -797,6 +816,13 @@ function validateMasks(masks: PixelMask[], width: number, height: number, allowZ
     if ((mask.width === 0 || mask.height === 0) && !allowZeroArea) return 'A zero-area mask covers no pixels. Review and acknowledge it before applying.';
   }
   return '';
+}
+
+function canReviewFile(item: Evidence): boolean {
+  if (item.status !== 'ready' || !item.kind) return false;
+  if (item.kind !== 'image') return true;
+  return Boolean(item.cleanPng) && !item.imageError && !validateMasks(item.masks, item.width ?? 0, item.height ?? 0, item.allowZeroArea) &&
+    item.masks.length === item.appliedMasks.length && item.masks.every((mask, index) => sameMask(mask, item.appliedMasks[index]!));
 }
 
 function activeMaskCount(masks: PixelMask[]): number {
