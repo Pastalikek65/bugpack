@@ -58,6 +58,7 @@ npx playwright install chromium
 node scripts/acceptance.mjs
 node scripts/acceptance-policy.mjs
 node scripts/acceptance-cli.mjs
+npm run audit:lighthouse
 ```
 
-The acceptance harnesses use real Chromium, workers, downloads, CLI subprocesses, ZIP inspection and decoded PNG pixel checks. Synthetic fixture bytes are bound by `examples/manifest.json`; the displayed example's provenance is recorded beside its outputs. See [verification](docs/verification.md) for evidence and qualification scope. The app uses Apache-2.0; bundled third-party licenses and the dependency inventory are in [third_party](third_party/README.md).
+The acceptance harnesses use real Chromium, workers, downloads, CLI subprocesses, ZIP inspection and decoded PNG pixel checks. The browser acceptance also records axe accessibility findings for the initial and file-review screens in `artifacts/acceptance-*/accessibility-*.json`. The current scan is report-only: it has identified contrast and accessible-name issues that still need correction. `npm run audit:lighthouse` measures the built site and writes `artifacts/lighthouse/report.json` and `summary.json`; scores are recorded without a release threshold until a baseline is reviewed. These automated checks do not establish WCAG conformance. Synthetic fixture bytes are bound by `examples/manifest.json`; the displayed example's provenance is recorded beside its outputs. See [verification](docs/verification.md) for evidence and qualification scope. The app uses Apache-2.0; bundled third-party licenses and the dependency inventory are in [third_party](third_party/README.md).

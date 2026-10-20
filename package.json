@@ -15,6 +15,7 @@
     "build": "tsc --noEmit && vite build && node scripts/build-cli.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "audit:lighthouse": "node scripts/lighthouse.mjs",
     "preview": "vite preview --host localhost --port 4174 --strictPort",
     "cli": "node dist/cli/bugpack.mjs"
   },
@@ -24,13 +25,15 @@
     "react-dom": "19.3.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
     "@types/node": "26.6.4",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.1.2",
+    "lighthouse": "13.5.0",
+    "playwright": "1.64.0",
     "typescript": "7.0.2",
     "vite": "8.3.4",
-    "vitest": "5.0.3",
-    "playwright": "1.64.0"
+    "vitest": "5.0.3"
   }
 }

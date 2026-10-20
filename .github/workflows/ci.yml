@@ -50,6 +50,8 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - run: npm run audit:lighthouse
+        if: runner.os == 'Linux'
       - run: node scripts/acceptance.mjs
       - run: node scripts/acceptance-policy.mjs
       - run: node scripts/acceptance-cli.mjs
@@ -114,6 +116,7 @@ jobs:
           if-no-files-found: error
           path: |
             artifacts/acceptance-*/acceptance.json
+            artifacts/acceptance-*/accessibility-*.json
             artifacts/acceptance-*/failure.json
             artifacts/acceptance-*/failure.png
             artifacts/acceptance-*/review.png
@@ -121,6 +124,7 @@ jobs:
             artifacts/acceptance-*/*-bundle.zip
             artifacts/acceptance-*/processing-summary.json
             artifacts/audit.json
+            artifacts/lighthouse/*.json
             artifacts/policy-*/acceptance.json
             artifacts/policy-*/failure.json
             artifacts/policy-*/failure.png
