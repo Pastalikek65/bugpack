@@ -24,6 +24,8 @@ interface TextEvidence extends BaseEvidence {
   cleanText?: string;
   changes?: number;
   omissions?: Omission[];
+  reviewError?: string;
+  reviewNotice?: string;
 }
 
 interface ImageEvidence extends BaseEvidence {
@@ -185,7 +187,7 @@ export default function App() {
             const result = await setOperation(operation);
             invalidateExport();
             updateEntry(item.id, (current) => current.kind === 'har' || current.kind === 'log' ? {
-              ...current, status: 'ready', cleanText: result.text, changes: result.changes, omissions: result.omissions, error: undefined,
+              ...current, status: 'ready', cleanText: result.text, changes: result.changes, omissions: result.omissions, error: undefined, reviewError: undefined, reviewNotice: undefined,
             } : current);
           }
         } catch (error) {
@@ -270,7 +272,7 @@ export default function App() {
   };
 
   const editCleanText = (item: TextEvidence, text: string) => {
-    updateEntry(item.id, (current) => current.kind === 'har' || current.kind === 'log' ? { ...current, cleanText: text } : current, true);
+    updateEntry(item.id, (current) => current.kind === 'har' || current.kind === 'log' ? { ...current, cleanText: text, reviewError: undefined, reviewNotice: undefined } : current, true);
   };
 
   const editReport = (field: keyof BugReport, value: string) => {
@@ -423,10 +425,40 @@ export default function App() {
     }
   };
 
-  const acknowledgeFile = (item: Evidence, checked: boolean) => {
-    if (item.status !== 'ready' || !item.kind || (checked && !canReviewFile(item))) return;
-    invalidateExport();
-    setEntries((current) => current.map((entry) => entry.id === item.id ? { ...entry, reviewed: checked } : entry));
+  const acknowledgeFile = async (item: Evidence, checked: boolean) => {
+    if (busy || item.status !== 'ready' || !item.kind || (checked && !canReviewFile(item))) return;
+    if (!checked || item.kind === 'image') {
+      invalidateExport();
+      setEntries((current) => current.map((entry) => entry.id === item.id ? { ...entry, reviewed: checked } : entry));
+      return;
+    }
+    if (item.cleanText === undefined) return;
+    setBusy(true);
+    setBusyLabel(`Checking the final cleaned copy of ${item.name}…`);
+    try {
+      const operation = startWorkerOperation<SanitizedText>({ type: 'sanitize-text', kind: item.kind, text: item.cleanText, policy });
+      const result = await setOperation(operation);
+      if (result.text !== item.cleanText) {
+        updateEntry(item.id, (current) => current.kind === 'har' || current.kind === 'log' ? {
+          ...current, cleanText: result.text, changes: (current.changes ?? 0) + result.changes,
+          omissions: combineOmissions(current.omissions ?? [], result.omissions),
+          reviewError: undefined, reviewNotice: 'Additional cleaning changed this file. Review the updated copy and approve it again.',
+        } : current, true);
+      } else {
+        invalidateExport();
+        setEntries((current) => current.map((entry) => entry.id === item.id ? { ...entry, reviewed: true, reviewError: undefined, reviewNotice: undefined } : entry));
+      }
+    } catch (error) {
+      if (!(error instanceof WorkerOperationError && error.code === 'cancelled')) {
+        updateEntry(item.id, (current) => current.kind === 'har' || current.kind === 'log' ? {
+          ...current, reviewError: error instanceof Error ? error.message : 'Could not validate this cleaned file.', reviewNotice: undefined,
+        } : current, true);
+      }
+    } finally {
+      setBusy(false);
+      setBusyLabel('');
+      workerRef.current = null;
+    }
   };
 
   const sourceUrl = useObjectUrl(selected?.kind === 'image' ? selected.source : null);
@@ -436,7 +468,7 @@ export default function App() {
     if (busy) throw new Error('Wait for the current operation to finish.');
     invalidateExport();
     setPolicy(next);
-    const queued = entries.filter((item): item is TextEvidence => item.kind === 'har' || item.kind === 'log').map(item => ({ ...item, status: 'queued' as const, reviewed: false, cleanText: undefined, changes: undefined, omissions: undefined, error: undefined }));
+    const queued = entries.filter((item): item is TextEvidence => item.kind === 'har' || item.kind === 'log').map(item => ({ ...item, status: 'queued' as const, reviewed: false, cleanText: undefined, changes: undefined, omissions: undefined, error: undefined, reviewError: undefined, reviewNotice: undefined }));
     const ids = new Set(queued.map(item => item.id));
     setEntries(current => current.map(item => ids.has(item.id) ? queued.find(next => next.id === item.id)! : item));
     const rebuilt = await processFiles(queued, next);
@@ -554,7 +586,7 @@ export default function App() {
                 <span className="failure-help">It will not be included in an export. Remove it or choose another file.</span>
               </div>
             ) : selected.kind === 'har' || selected.kind === 'log' ? (
-              <TextReview item={selected} onEdit={editCleanText} />
+              <TextReview item={selected} onEdit={editCleanText} busy={busy} />
             ) : selected.kind === 'image' ? (
               <ImageReview
                 item={selected}
@@ -578,11 +610,13 @@ export default function App() {
             {selected?.status === 'ready' && selected.kind && (
               <div className="file-approval">
                 <label className={`review-check ${canReviewFile(selected) && !busy ? '' : 'is-disabled'}`}>
-                  <input type="checkbox" checked={Boolean(selected.reviewed)} onChange={(event) => acknowledgeFile(selected, event.currentTarget.checked)} disabled={!canReviewFile(selected) || busy} />
+                  <input type="checkbox" checked={Boolean(selected.reviewed)} onChange={(event) => void acknowledgeFile(selected, event.currentTarget.checked)} disabled={!canReviewFile(selected) || busy} />
                   <span className="review-check-box" aria-hidden="true" />
                   <span>I reviewed {selected.name}</span>
                 </label>
                 {selected.kind === 'image' && !canReviewFile(selected) && <p className="form-hint">Apply the current masks and inspect the regenerated image before approving this file.</p>}
+                {(selected.kind === 'har' || selected.kind === 'log') && selected.reviewNotice && <p className="review-notice" role="status">{selected.reviewNotice}</p>}
+                {(selected.kind === 'har' || selected.kind === 'log') && selected.reviewError && <p className="inline-error review-error" role="alert">{selected.reviewError}</p>}
               </div>
             )}
           </section>
@@ -640,7 +674,7 @@ export default function App() {
   );
 }
 
-function TextReview({ item, onEdit }: { item: TextEvidence; onEdit: (item: TextEvidence, text: string) => void }) {
+function TextReview({ item, onEdit, busy }: { item: TextEvidence; onEdit: (item: TextEvidence, text: string) => void; busy: boolean }) {
   const omissions = item.omissions ?? [];
   return (
     <div className="text-review">
@@ -659,7 +693,7 @@ function TextReview({ item, onEdit }: { item: TextEvidence; onEdit: (item: TextE
         </section>
         <section className="text-column" aria-labelledby="clean-heading">
           <div className="editor-heading"><div><span className="column-state clean-state">CLEAN COPY</span><h3 id="clean-heading">Review and edit</h3></div><span className="editor-subtitle">Editable</span></div>
-          <textarea className="code-editor clean-editor" aria-label="Cleaned text, editable" value={item.cleanText ?? ''} onChange={(event) => onEdit(item, event.currentTarget.value)} spellCheck={false} />
+          <textarea className="code-editor clean-editor" aria-label="Cleaned text, editable" value={item.cleanText ?? ''} onChange={(event) => onEdit(item, event.currentTarget.value)} disabled={busy} spellCheck={false} />
           {item.kind === 'har' && <p className="editor-note">Keep this content as valid JSON. The worker validates edited HAR content again when you export.</p>}
           {item.kind === 'log' && <p className="editor-note">Inspect the clean copy for values that automated rules may not recognize.</p>}
         </section>
@@ -823,6 +857,15 @@ function canReviewFile(item: Evidence): boolean {
   if (item.kind !== 'image') return true;
   return Boolean(item.cleanPng) && !item.imageError && !validateMasks(item.masks, item.width ?? 0, item.height ?? 0, item.allowZeroArea) &&
     item.masks.length === item.appliedMasks.length && item.masks.every((mask, index) => sameMask(mask, item.appliedMasks[index]!));
+}
+
+function combineOmissions(previous: Omission[], additional: Omission[]): Omission[] {
+  const byCode = new Map(previous.map((item) => [item.code, { ...item }]));
+  for (const item of additional) {
+    const existing = byCode.get(item.code);
+    byCode.set(item.code, existing ? { ...existing, count: existing.count + item.count } : { ...item });
+  }
+  return [...byCode.values()];
 }
 
 function activeMaskCount(masks: PixelMask[]): number {

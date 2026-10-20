@@ -24,7 +24,7 @@ npm run build
 node scripts/serve.mjs --root dist --port 4174
 ```
 
-Open `http://127.0.0.1:4174`. Choose `examples/sample.har`, `sample.log` and `sample.png`. Review **Original text** beside the editable clean copy. Remove the example email manually: automatic patterns do not find every personal value. On the screenshot, cover the highlighted token with an opaque mask, then choose **Apply masks and regenerate PNG**. Approve each cleaned file in its preview, complete and approve the bug report, then choose **Build and download ZIP**. The file list shows which files still need review.
+Open `http://127.0.0.1:4174`. Choose `examples/sample.har`, `sample.log` and `sample.png`. Review **Original text** beside the editable clean copy. Remove the example email manually: automatic patterns do not find every personal value. On the screenshot, cover the highlighted token with an opaque mask, then choose **Apply masks and regenerate PNG**. Approve each cleaned file in its preview, complete and approve the bug report, then choose **Build and download ZIP**. The file list shows which files still need review. Text approval checks the edited copy with the active cleaning policy. If cleaning changes it, inspect the updated copy and approve again; invalid HAR stays unapproved with a file-level error.
 
 The ZIP contains neutral `evidence-*` filenames, a Markdown report and `processing-summary.json`. Originals and original filenames are not included automatically. The default omits HAR bodies, cookies, unapproved headers and unknown extension fields and counts them in the summary. All input files remain unchanged.
 
@@ -46,7 +46,7 @@ Create the output directory first; existing files are never overwritten. Review 
 
 Known authorization, cookie, credential assignment and signed-URL patterns are removed automatically. The cleaned text is editable. Screenshot masks cover whole pixels with opaque black; outputs are newly encoded PNGs without ancillary metadata. Original previews remain local and can contain secrets. Inspect URLs, names, text, pixels and the report before sharing. BugPack does not guarantee detection of every secret or personal value.
 
-A failed input blocks export until it is removed. Editing cleaned text or masks clears that file's approval; applying a cleaning policy clears approvals for rebuilt text files. Editing report fields clears the report approval. ZIP export requires every file and the report to be approved. File processing and ZIP creation run in dedicated workers with explicit cancellation and deadlines.
+A failed input blocks export until it is removed. Editing cleaned text or masks clears that file's approval; applying a cleaning policy clears approvals for rebuilt text files. Editing report fields clears the report approval. ZIP export requires every file and the report to be approved. Text approval and ZIP creation both run the local cleaning engine; the export check remains in place even after approval. File processing and ZIP creation run in dedicated workers with explicit cancellation and deadlines.
 
 ## Development
 
